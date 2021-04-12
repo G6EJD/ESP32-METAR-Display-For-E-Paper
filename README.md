@@ -18,3 +18,9 @@ An ESP32 receives METAR Datagrams, then decodes and displays the result
 7. Edit the station names you wish to receive and decode
 
 8. Compile and upload
+
+Summary Mode
+![alt_text, width="400"](/SummaryMode.jpg)
+
+Decode Mode
+![alt_text, width="400"](/DecodeMode.jpg)
