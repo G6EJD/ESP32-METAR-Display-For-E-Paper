@@ -1,6 +1,6 @@
 *** DO-NOT USE THIS SOFTWASRE UNLESS YOU WISH TO BE BOUND TO THE SOFTWARE LICENCE ***
 
-# ESP32-METAR-Display-For-E-Paper
+# ESP32 METAR Display For E-Paper Displays
 An ESP32 receives METAR Datagrams, then decodes and displays the result
 
 1. Download all files into a sket golder with the same name as the INO file
