@@ -20,7 +20,7 @@ An ESP32 receives METAR Datagrams, then decodes and displays the result
 8. Compile and upload
 
 Summary Mode
-![alt_text, width="400"](/SummaryMode.jpg)
+![alt_text, width="300"](/SummaryMode.jpg)
 
 Decode Mode
-![alt_text, width="400"](/DecodeMode.jpg)
+![alt_text, width="300"](/DecodeMode.jpg)
