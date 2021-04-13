@@ -8,6 +8,7 @@
 // 3. You may not, except with my express written permission, distribute or commercially exploit the content.
 // 4. You may not transmit it or store it in any other website or other form of electronic retrieval system for commercial purposes.
 // 5. You *** MUST *** include all of this copyright and permission notice ('as annotated') and this shall be included
+// 6. IF YOU DON'T LIKE THESE LICENCE CONDITIONS DONT USE THE SOFTWARE
 //    in all copies or substantial portions of the software and where the software use is visible to an end-user.
 // THE SOFTWARE IS PROVIDED "AS IS" FOR PRIVATE USE ONLY, IT IS NOT FOR COMMERCIAL USE IN WHOLE OR PART OR CONCEPT.
 // FOR PERSONAL USE IT IS SUPPLIED WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, OR FITNESS
@@ -75,13 +76,11 @@ typedef struct {
   float  DewPoint      = 0;
   float  WindChill     = 0;
   float  Humidity      = 0;
-  float  Pressure      = 0;
-  float  WindSpeedMS   = 0;
-  float  WindSpeedMPH  = 0;
-  float  WindSpeedKTS  = 0;
-  float  WindSpeedKPH  = 0;
+  int    Pressure      = 0;
+  int    WindSpeed     = 0;
   int    WindDirection = 0;
-  int    Gust          = 0;
+  int    Gusting       = 0;
+  String Units         = "";
   String Visibility    = "";
   String Veering       = "";
   int    StartV        = 0;
@@ -101,7 +100,8 @@ metar_type METAR[maximumMETAR];
 //################  VERSION  ##################################################
 String version = "(v1.0)";  // for EPAPER Display Unit
 //################ PROGRAM VARIABLES and OBJECTS ##########################################
-long      SleepDuration = 30;  // Sleep time in minutes, aligned to the nearest minute boundary, so if 30 will always update at 00 or 30 past the hour
+long      SleepDuration = 30;    // Sleep time in minutes, aligned to the nearest minute boundary, so if 30 will always update at 00 or 30 past the hour
+const int time_delay    = 20000; // 20-secs between METAR displays in decode mode
 int       count         = 0;
 int       displayLine   = 0;
 
@@ -128,12 +128,12 @@ void ReceiveMETAR() {
   display.fillScreen(GxEPD_WHITE);
   drawString(5, 10, "Receiving METAR data...", LEFT);
   display.display(false);
+  GET_METAR("EGLL", "EGLL London Heathrow", true);
   GET_METAR("KIAD", "KIAD Washington, DC", true); // METAR Code, Description, Clear the screen (true) after display or not
-  GET_METAR("EGGD", "EGGD Bristol/Lulsgate", true);
-  GET_METAR("EGVN", "EGVN Brize Norton", true);
-  GET_METAR("EGCC", "EGCC Manchester Airport", true);
-  GET_METAR("EGHQ", "EGHQ Newquay", true);
-  GET_METAR("EGSS", "EGSS Stansted", false);
+  GET_METAR("LFPO", "LFPO Paris/Orly", true);
+  GET_METAR("YSSY", "YSSY Sydney", true);
+  GET_METAR("FACT", "FACT Cape Town", true);
+  GET_METAR("GMMX", "GMMX Marakesh", false);
   if (summaryMode) {
     display.fillScreen(GxEPD_WHITE);
     u8g2Fonts.setFont(u8g2_font_helvB08_tf);   // select u8g2 font from here: https://github.com/olikraus/u8g2/wiki/fntlistall
@@ -144,7 +144,6 @@ void ReceiveMETAR() {
 
 void GET_METAR(String Station, String Name, bool displayRefresh) { //client function to send/receive GET request data.
   String metar, raw_metar;
-  const int time_delay = 30000; // 30-secs
   // https://aviationweather.gov/adds/dataserver_current/httpparam?dataSource=metars&requestType=retrieve&format=xml&stationString=EGLL&hoursBeforeNow=1
   String url = "/adds/dataserver_current/httpparam?datasource=metars&requestType=retrieve&format=xml&mostRecentForEachStation=constraint&hoursBeforeNow=1.25&stationString=" + Station;
   Serial.println("Connected, \nRequesting data for : " + Name);
@@ -191,12 +190,11 @@ void display_metar(String metar, String Station) {
   char   str[130]   = "";
   char   *parameter;
   String conditions_start = " ";
-  String temp_strA  = "";
-  String temp_strB  = "";
-  String temp_Pres  = "";
+  String temp_strA = "";
+  String temp_strB = "";
   String conditions_test = "+-BDFGHIMPRSTUV"; // Test for light or heavy (+/-) BR - Mist, RA - Rain  SH-Showers VC - Vicinity, etc
-  // Test metar exercises all decoder functions on screen
-  // metar = "EGDM 261550Z AUTO 26517G23KT 250V290 6999 R04/1200 4200SW -SH SN NCD SCT002TCU SCT090 FEW222/// 28/M15 Q1001 RERA NOSIG BLU";
+  // Test metar exercises all decoder functions on screen, uncomment to invoke
+  //metar = "EGDM 261550Z AUTO 26517G23KT 250V290 6999 R04/1200 4200SW -SH SN NCD SCT002TCU SCT090 FEW222/// 12/M15 Q1001 RERA NOSIG BLU";
   metar.toCharArray(str, 130);
   parameter = strtok(str, " "); // Find tokens that are seperated by SPACE
   while (parameter != NULL) {
@@ -216,19 +214,24 @@ void display_metar(String metar, String Station) {
     METAR[count].Time    = temp_strA.substring(2, 6);
     drawString(5, 10, Station + "  Date:" + METAR[count].Date + " @ " + METAR[count].Time + "Hr", LEFT);
     temp_strA = strtok(NULL, " ");
-    METAR[count].StationMode = temp_strA;
-    if (temp_strA == "AUTO") temp_strA = strtok(NULL, " ");
-    if (temp_strA == "/////KT") temp_strA = "00000KT";
-    temp_strB = temp_strA.substring(3, 5);
-    wind_speedKTS = temp_strB.toInt(); // Knots/sec
-    METAR[count].WindSpeedKTS = temp_strB.toInt();
-    METAR[count].WindSpeedMPH = temp_strB.toInt() * 1.15078;
-    METAR[count].WindSpeedKPH = temp_strB.toInt() * 1.852;
-    METAR[count].WindSpeedMS  = temp_strB.toInt() * 0.51444;
+    Serial.println(temp_strA);
+    if (temp_strA == "AUTO") {
+      METAR[count].StationMode = temp_strA;
+      temp_strA = strtok(NULL, " ");
+    }
+    METAR[count].WindSpeed = temp_strA.substring(3, 5).toInt();
+    if (temp_strA.endsWith("KT"))  METAR[count].Units = "kts";
+    if (temp_strA.endsWith("MPS")) METAR[count].Units = "mps";
+    if (temp_strA.endsWith("MPH")) METAR[count].Units = "mph";
+    if (temp_strA.endsWith("KPH")) METAR[count].Units = "kph";
     int windDirection = 0;
-    if  (temp_strA.indexOf('G') >= 0) temp_strB = temp_strA.substring(8);
+    if  (temp_strA.indexOf('G') >= 0) {
+      if (temp_strA.endsWith("KT"))  METAR[count].Gusting = temp_strA.substring(temp_strA.indexOf('G') + 1, temp_strA.indexOf("KT")).toInt();
+      if (temp_strA.endsWith("MPS")) METAR[count].Gusting = temp_strA.substring(temp_strA.indexOf('G') + 1, temp_strA.indexOf("MPS")).toInt();
+      if (temp_strA.endsWith("MPH")) METAR[count].Gusting = temp_strA.substring(temp_strA.indexOf('G') + 1, temp_strA.indexOf("MPH")).toInt();
+      if (temp_strA.endsWith("KPH")) METAR[count].Gusting = temp_strA.substring(temp_strA.indexOf('G') + 1, temp_strA.indexOf("KPH")).toInt();
+    }
     else temp_strB = temp_strA.substring(5);
-    if (temp_strB == "MPS") temp_strB = "MS";
     if (temp_strA.substring(0, 3) == "VRB") {
       METAR[count].Veering = "VRB";
       drawString(275, 30, "VRB", LEFT);
@@ -248,7 +251,7 @@ void display_metar(String metar, String Station) {
       // Minimum angle is either ABS(AngleA- AngleB) or (360-ABS(AngleA-AngleB))
       temp_strA = strtok(NULL, " ");    // Move to the next token/item
     }
-    DisplayDisplayWindSection(330, 85, windDirection, METAR[count].WindSpeedMPH, startV, endV, 50);
+    DisplayDisplayWindSection(330, 85, windDirection, METAR[count].WindSpeed, startV, endV, 50);
     if (temp_strA == "////") {
       temp_strB = "No Visibility Rep.";
       METAR[count].Visibility = temp_strB.toInt();
@@ -390,7 +393,6 @@ void display_metar(String metar, String Station) {
       }
     }
     if (temp_strA.indexOf("/") <= 0) {
-      temp_Pres = temp_strA;
       temp_strA = "00/00";
     }
     String temp_sign = "";
@@ -443,7 +445,6 @@ void display_metar(String metar, String Station) {
     }
     temp_strA = strtok(NULL, " ");
     temp_strA.trim();
-    if (temp_Pres.startsWith("Q")) temp_strA = temp_Pres; // Pickup a temporary copy of air pressure, found when no temp broadcast
     if (temp_strA.startsWith("Q")) {
       if (temp_strA.substring(1, 2) == "0") {
         temp_strA = " " + temp_strA.substring(2);
@@ -453,15 +454,15 @@ void display_metar(String metar, String Station) {
       }
       u8g2Fonts.setFont(u8g2_font_helvB14_tf);   // select u8g2 font from here: https://github.com/olikraus/u8g2/wiki/fntlistall
       METAR[count].Pressure = temp_strA.toInt();
-      drawString(295, 195, String(METAR[count].Pressure, 0) + " hPa", LEFT);
+      drawString(295, 195, String(METAR[count].Pressure) + " hPa", LEFT);
       u8g2Fonts.setFont(u8g2_font_helvB12_tf);   // select u8g2 font from here: https://github.com/olikraus/u8g2/wiki/fntlistall
     }
     else
     {
       temp_strA = temp_strA.substring(1);
-      METAR[count].Pressure = temp_strA.toFloat() / 100;
+      METAR[count].Pressure = temp_strA.toInt();
       u8g2Fonts.setFont(u8g2_font_helvB14_tf);   // select u8g2 font from here: https://github.com/olikraus/u8g2/wiki/fntlistall
-      drawString(300, 195, String(METAR[count].Pressure, 2) + " in", LEFT);
+      drawString(300, 195, String(METAR[count].Pressure / 100.0, 2) + " in", LEFT);
       u8g2Fonts.setFont(u8g2_font_helvB12_tf);   // select u8g2 font from here: https://github.com/olikraus/u8g2/wiki/fntlistall
     }
     temp_strA = strtok(NULL, " "); // Get last tokens, can be a secondary weather report
@@ -473,8 +474,9 @@ void display_metar(String metar, String Station) {
     parameter = NULL; // Reset the 'str' pointer, so end of report decoding
   }
   DisplayMetar();
+  if (!summaryMode) ClearVariables();
   count++;
-} 
+}
 
 
 String convert_clouds(String source) {
@@ -597,12 +599,9 @@ void DisplayMetar() {
   Serial.println("     WindChill = " + String(METAR[count].WindChill));
   Serial.println("      Humidity = " + String(METAR[count].Humidity));
   Serial.println("      Pressure = " + String(METAR[count].Pressure));
-  Serial.println(" WindSpeed KTS = " + String(METAR[count].WindSpeedKTS));
-  Serial.println("  WindSpeed MS = " + String(METAR[count].WindSpeedMS));
-  Serial.println(" WindSpeed MPH = " + String(METAR[count].WindSpeedMPH));
-  Serial.println(" WindSpeed KPH = " + String(METAR[count].WindSpeedKPH));
+  Serial.println("     WindSpeed = " + String(METAR[count].WindSpeed));
   Serial.println("Wind Direction = " + String(METAR[count].WindDirection));
-  Serial.println("       Gusting = " + METAR[count].Gust);
+  Serial.println("       Gusting = " + String(METAR[count].Gusting));
   Serial.println("    Visibility = " + String(METAR[count].Visibility));
   Serial.println("           VRB = " + METAR[count].Veering);
   Serial.println(" Veering Start = " + String(METAR[count].StartV));
@@ -615,6 +614,34 @@ void DisplayMetar() {
   Serial.println("      Report-1 = " + METAR[count].Report1);
   Serial.println("      Report-2 = " + METAR[count].Report2);
   Serial.println("---------------------------------------------");
+}
+
+void ClearVariables() {
+  METAR[count].Metar         = "";
+  METAR[count].Station       = "";
+  METAR[count].StationMode   = "";
+  METAR[count].Date          = "";
+  METAR[count].Time          = "";
+  METAR[count].Description   = "";
+  METAR[count].Temperature   = 0;
+  METAR[count].DewPoint      = 0;
+  METAR[count].WindChill     = 0;
+  METAR[count].Humidity      = 0;
+  METAR[count].Pressure      = 0;
+  METAR[count].WindSpeed     = 0;
+  METAR[count].WindDirection = 0;
+  METAR[count].Gusting       = 0;
+  METAR[count].Visibility    = "";
+  METAR[count].Veering       = "";
+  METAR[count].StartV        = 0;
+  METAR[count].EndV          = 0;
+  METAR[count].CloudsL1      = "";
+  METAR[count].CloudsL2      = "";
+  METAR[count].CloudsL3      = "";
+  METAR[count].CloudsL4      = "";
+  METAR[count].Conditions    = "";
+  METAR[count].Report1       = "";
+  METAR[count].Report2       = "";
 }
 
 void DisplayMetarSummary(int count) {
@@ -678,12 +705,12 @@ void DisplayDisplayWindSection(int x, int y, float angle, float windspeed, int s
   drawString(x + Cradius + 8, y - 3,  "E", CENTRE);
   u8g2Fonts.setFont(u8g2_font_helvB08_tf);
   drawString(x + 5, y + 20, String(angle, 0) + "°", CENTRE);
-  drawString(x + 1, y + 9, (Units == "M" ? "m/s" : "mph"), CENTRE);
+  drawString(x + 1, y + 9, METAR[count].Units, CENTRE);
   int veering = min_val(360 - abs(startV - endV), abs(startV - endV));
   if (veering > 0 ) drawString(x + 5, y + Cradius + 15, "Veering: " + String(veering) + "*", CENTRE);
   u8g2Fonts.setFont(u8g2_font_helvB12_tf);
-  drawString(x - 10, y - 19, WindDegToOrdinalDirection(angle), CENTRE);
-  drawString(x - 5, y  - 2, String(windspeed, 1), CENTRE);
+  drawString(x - (WindDegToOrdinalDirection(angle).length() < 3 ? 5 : 10), y - 19, WindDegToOrdinalDirection(angle), CENTRE);
+  drawString(x - 5, y  - 2, String(windspeed, (METAR[count].Gusting > 0 ? 0 : 1)) + (METAR[count].Gusting > 0 ? "/" + String(METAR[count].Gusting) : ""), CENTRE);
 }
 
 void arrow(int x, int y, int Asize, float Aangle, int Awidth, int Alength) {
@@ -719,17 +746,17 @@ String WindDegToOrdinalDirection(float winddirection) {
   if (winddirection >= 281.25 && winddirection < 303.75) return "WNW";
   if (winddirection >= 303.75 && winddirection < 326.25) return "NW";
   if (winddirection >= 326.25 && winddirection < 348.75) return "NNW";
-  return "?";
+  return " ? ";
 }
 
 void BeginSleep() {
   esp_sleep_enable_timer_wakeup(SleepDuration * 60 * 1000000LL); // in Secs, 1000000LL converts to Secs
-  Serial.println("Starting deep-sleep period...");
+  Serial.println("Starting deep - sleep period...");
   esp_deep_sleep_start();  // Sleep for e.g. 30 minutes
 }
 
-uint8_t StartWiFi() {
-  Serial.println("\r\nConnecting to: " + String(ssid));
+void StartWiFi() {
+  Serial.println("\r\nConnecting to : " + String(ssid));
   IPAddress dns(8, 8, 8, 8); // Use Google DNS
   WiFi.disconnect();
   WiFi.mode(WIFI_STA); // switch off AP
@@ -737,16 +764,15 @@ uint8_t StartWiFi() {
   WiFi.setAutoReconnect(true);
   WiFi.begin(ssid, password);
   while (WiFi.waitForConnectResult() != WL_CONNECTED) {
-    Serial.printf("STA: Failed!\n");
+    Serial.printf("STA : Failed!\n");
     WiFi.disconnect(false);
     delay(10000);
     WiFi.reconnect();
   }
   if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("WiFi connected at: " + WiFi.localIP().toString());
+    Serial.println("WiFi connected at : " + WiFi.localIP().toString());
   }
   else Serial.println("WiFi connection *** FAILED ***");
-  return WiFi.status();
 }
 
 void StopWiFi() {
@@ -771,9 +797,7 @@ void InitialiseSystem() {
   u8g2Fonts.setBackgroundColor(GxEPD_WHITE); // apply Adafruit GFX color
   u8g2Fonts.setFont(u8g2_font_helvB10_tf);   // select u8g2 font from here: https://github.com/olikraus/u8g2/wiki/fntlistall
   display.setRotation(0);
-//  display.setTextSize(0);
-//  display.setTextColor(GxEPD_BLACK);
   display.fillScreen(GxEPD_WHITE);
   display.setFullWindow();
 }
-//  779 lines of code
+//  775 lines of code
