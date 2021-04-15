@@ -3,7 +3,7 @@
 # ESP32 METAR Display For E-Paper Displays
 An ESP32 receives METAR Datagrams, then decodes and displays the result
 
-1. Download all files into a sket golder with the same name as the INO file
+1. Download all files into a sketch folder with the same name as the INO file
 
 2. Open the IDE
 
