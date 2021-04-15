@@ -24,3 +24,7 @@ Summary Mode
 
 Decode Mode
 ![alt_text, width="300"](/DecodeMode.jpg)
+
+Decode Mode
+![alt_text, width="300"](/Schematic.jpg)
+
