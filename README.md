@@ -25,6 +25,6 @@ Summary Mode
 Decode Mode
 ![alt_text, width="300"](/DecodeMode.jpg)
 
-Decode Mode
+Wiring Schematic for ALL Waveshare E-Paper Displays
 ![alt_text, width="300"](/Schematic.JPG)
 
