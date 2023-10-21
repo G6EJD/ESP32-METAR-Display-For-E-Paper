@@ -145,7 +145,8 @@ void ReceiveMETAR() {
 void GET_METAR(String Station, String Name, bool displayRefresh) { //client function to send/receive GET request data.
   String metar, raw_metar;
   // https://aviationweather.gov/adds/dataserver_current/httpparam?dataSource=metars&requestType=retrieve&format=xml&stationString=EGLL&hoursBeforeNow=1
-  String url = "/adds/dataserver_current/httpparam?datasource=metars&requestType=retrieve&format=xml&mostRecentForEachStation=constraint&hoursBeforeNow=1.25&stationString=" + Station;
+  String url = "/cgi-bin/data/metar.php?dataSource=metars&requestType=retrieve&format=xml&ids=" + station + "&hoursBeforeNow=1";
+  //String url = "/adds/dataserver_current/httpparam?datasource=metars&requestType=retrieve&format=xml&mostRecentForEachStation=constraint&hoursBeforeNow=1.25&stationString=" + Station;
   Serial.println("Connected, \nRequesting data for : " + Name);
   HTTPClient http;
   http.begin(host + url);
